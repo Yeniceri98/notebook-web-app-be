@@ -8,9 +8,8 @@ import jakarta.persistence.Id;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
 
-import java.util.Date;
+import java.time.LocalDate;
 
 @Entity(name = "notebook_table")
 @Data
@@ -26,8 +25,7 @@ public class Notebook {
 
     private String content;
 
-    @CreatedDate
-    private Date createdAt;
+    private LocalDate targetDate;
 
     @JsonProperty("isDone")
     private boolean isDone;
