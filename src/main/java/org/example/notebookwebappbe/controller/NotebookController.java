@@ -2,7 +2,10 @@ package org.example.notebookwebappbe.controller;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.example.notebookwebappbe.entity.Notebook;
+import org.example.notebookwebappbe.entity.User;
+import org.example.notebookwebappbe.repository.UserRepository;
 import org.example.notebookwebappbe.service.NotebookService;
+import org.example.notebookwebappbe.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,48 +15,75 @@ import java.util.Optional;
 
 @Tag(name = "Notebook Controller", description = "CRUD Operations")
 @RestController
-@RequestMapping("/api/notebook")
+@RequestMapping("/api")
 public class NotebookController {
     private final NotebookService notebookService;
+    private final UserService userService;
 
-    public NotebookController(NotebookService notebookService) {
+    public NotebookController(NotebookService notebookService, UserRepository userRepository, UserService userService) {
         this.notebookService = notebookService;
+        this.userService = userService;
     }
 
-    @Tag(name = "Retrieving All Notes of User")
+    @Tag(name = "Retrieving All Notes from Selected User")
     @GetMapping("/{username}/notes")
-    public List<Notebook> retrieveAllNotesOfUser(@PathVariable String username) {
-        return notebookService.getAllNotes(username);
+    public ResponseEntity<List<Notebook>> retrieveAllNotesOfUser(@PathVariable String username) {
+        Optional<User> userOptional = userService.getUserByUsername(username);
+        if (userOptional.isPresent()) {
+            User user = userOptional.get();
+            List<Notebook> notebooks = notebookService.getAllNotes(user);
+            return ResponseEntity.ok(notebooks);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 
-    @Tag(name = "Retrieving Single Note of User")
+    @Tag(name = "Retrieving Single Note from Selected User")
     @GetMapping("/{username}/notes/{id}")
-    public Optional<Notebook> retrieveSingleNoteOfUser(@PathVariable String username, @PathVariable Long id) {
-        return notebookService.getNoteById(id);
+    public ResponseEntity<Notebook> retrieveSingleNoteOfUser(@PathVariable String username, @PathVariable Long id) {
+        Optional<Notebook> notebookOptional = notebookService.getNoteById(id);
+        return notebookOptional.map(notebook -> ResponseEntity.ok(notebook))
+                .orElse(ResponseEntity.notFound().build());
     }
 
-    @Tag(name = "Create a New Note of User")
+    @Tag(name = "Creating a New Note for Selected User")
     @PostMapping("/{username}/notes")
     public ResponseEntity<Notebook> createNoteOfUser(@PathVariable String username, @RequestBody Notebook note) {
-        Notebook createdNote = notebookService.createNote(note);
-        return new ResponseEntity<>(createdNote, HttpStatus.CREATED);
+        Optional<User> userOptional = userService.getUserByUsername(username);
+        if (userOptional.isPresent()) {
+            User user = userOptional.get();
+            Notebook createdNote = notebookService.createNote(note, user);
+            return ResponseEntity.status(HttpStatus.CREATED).body(createdNote);
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
     }
 
-    @Tag(name = "Update Note of User")
+    @Tag(name = "Updating Selected User's Note")
     @PutMapping("/{username}/notes/{id}")
-    public ResponseEntity<Notebook> updateNoteOfUser(@PathVariable String username, @PathVariable Long id, @RequestBody Notebook updatedNote) {
-        Notebook note = notebookService.updateNote(id, updatedNote);
-        return new ResponseEntity<>(note, HttpStatus.OK);
+    public ResponseEntity<Notebook> updateNote(@PathVariable String username, @PathVariable Long id, @RequestBody Notebook updatedNote) {
+        Optional<Notebook> selectedNoteOptional = notebookService.getNoteById(id);
+
+        if (selectedNoteOptional.isPresent()) {
+            Notebook selectedNote = selectedNoteOptional.get();
+            selectedNote.setContent(updatedNote.getContent());
+            selectedNote.setTargetDate(updatedNote.getTargetDate());
+            selectedNote.setDone(updatedNote.isDone());
+
+            Notebook updatedNotebook = notebookService.updateNote(id, selectedNote);
+            return ResponseEntity.ok(updatedNotebook);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 
-    @Tag(name = "Delete User's Note")
+    @Tag(name = "Deleting Selected User's Note")
     @DeleteMapping("/{username}/notes/{id}")
     public ResponseEntity<Void> deleteNoteOfUser(@PathVariable String username, @PathVariable Long id) {
         try {
             notebookService.deleteNoteById(id);
             return ResponseEntity.noContent().build();
         } catch(Exception ex) {
-            ex.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
