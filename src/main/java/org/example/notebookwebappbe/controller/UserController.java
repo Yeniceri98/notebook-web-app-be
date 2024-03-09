@@ -23,11 +23,6 @@ public class UserController {
         this.userService = userService;
     }
 
-    @GetMapping("/basicAuth")
-    public String basicAuthCheck() {
-        return "Success";
-    }
-
     @Tag(name = "Registering New User")
     @PostMapping("/register")
     public ResponseEntity<String> registerUser(@Valid @RequestBody User user, BindingResult bindingResult) {
